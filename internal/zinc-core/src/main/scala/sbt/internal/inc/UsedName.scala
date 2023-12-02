@@ -17,6 +17,10 @@ import xsbti.compile.{ UsedName => XUsedName }
 import xsbti.UseScope
 
 case class UsedName private (name: String, scopes: ju.EnumSet[UseScope]) extends XUsedName {
+  override def toString: String = {
+    val formattedScopes = if (scopes == UsedName.DefaultScope) "" else " " + scopes
+    name + formattedScopes
+  }
   override def getName: String = name
   override def getScopes: ju.EnumSet[UseScope] = scopes
 }
@@ -39,6 +43,8 @@ object UsedName {
     else
       name
   }
+
+  private val DefaultScope = java.util.EnumSet.of(UseScope.Default)
 }
 
 sealed abstract class UsedNames private {

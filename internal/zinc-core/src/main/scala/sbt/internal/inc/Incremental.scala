@@ -399,7 +399,7 @@ object Incremental {
       else
         incremental.log.debug(
           "All initially invalidated classes: " + initialInvClasses + "\n" +
-            "All initially invalidated sources:" + initialInvSources + "\n"
+            "All initially invalidated sources: " + initialInvSources + "\n"
         )
     }
 

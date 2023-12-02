@@ -102,7 +102,7 @@ final case class ModifiedNames(names: Set[UsedName]) {
     lookupMap.contains(name -> scope)
 
   override def toString: String =
-    s"ModifiedNames(changes = ${names.mkString(", ")})"
+    s"ModifiedNames(${names.mkString(", ")})"
 }
 object ModifiedNames {
   def compareTwoNameHashes(a: Array[NameHash], b: Array[NameHash]): ModifiedNames = {

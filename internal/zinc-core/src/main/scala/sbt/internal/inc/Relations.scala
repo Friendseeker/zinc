@@ -653,34 +653,53 @@ private class MRelationsNameHashing(
   /** Making large Relations a little readable. */
   private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
   private def nocwd(s: String) = s.stripPrefix(userDir)
-  private def line_s(k: Any, v: Any) = s"    ${nocwd(s"$k")} -> ${nocwd(s"$v")}\n"
-  def relation_s(r: Relation[_, _]) = {
-    if (r.forwardMap.isEmpty) "Relation [ ]"
-    else r.all.toSeq.map(kv => line_s(kv._1, kv._2)).sorted.mkString("Relation [\n", "", "]")
-  }
   def usedNames_s(r: Relations.UsedNames) = {
     if (r.isEmpty) "UsedNames [ ]"
     else {
       val all = r.iterator.flatMap { case (a, bs) => bs.iterator.map(b => (a, b)) }
-      all.map(kv => line_s(kv._1, kv._2)).toSeq.sorted.mkString("UsedNames [\n", "", "]")
+      formatAsLines(all.toSeq).sorted.mkString("UsedNames [\n", "", "]")
     }
   }
 
+  private def formatAsLines(kvs: Seq[(Any, Any)], indentation: String = "  "): Seq[String] = {
+    val stringified = kvs.map { case (k, v) => nocwd(k.toString) -> nocwd(v.toString) }
+    val longestKey = stringified.map(_._1.length).max
+    stringified.map {
+      case (k, v) =>
+        indentation + "  " + k.padTo(longestKey, ' ') + " -> " + v + "\n"
+    }
+  }
+
+  protected def relation_s(r: Relation[_, _], indentation: String = "  "): String = {
+    if (r.forwardMap.isEmpty) "[]"
+    else
+      formatAsLines(r.all.toSeq, indentation).sorted.mkString("[\n", "", indentation + "]")
+  }
+
+  protected def relation_s(r: Relation[_, _]): String = relation_s(r, "  ")
+
   override def toString: String = {
-    def deps_s(m: Map[_, Relation[_, _]]) =
-      m.iterator.map {
-        case (k, vs) => s"\n    $k ${relation_s(vs)}"
-      }.mkString
+    def color(s: String) = Console.YELLOW + s + Console.RESET
+
+    def nestedRelation(deps: Map[_, Relation[_, _]]): String = {
+      if (deps.isEmpty) "[]"
+      else {
+        val indentation = "    "
+        deps
+          .map { case (k, vs) => color(k.toString) + ": " + relation_s(vs, indentation) }
+          .mkString("\n" + indentation, "\n" + indentation, "")
+      }
+    }
     s"""
-    |Relations:
-    |  products: ${relation_s(srcProd)}
-    |  library deps: ${relation_s(libraryDep)}
-    |  library class names: ${relation_s(libraryClassName)}
-    |  internalDependencies: ${deps_s(internalDependencies.dependencies)}
-    |  externalDependencies: ${deps_s(externalDependencies.dependencies)}
-    |  class names: ${relation_s(classes)}
-    |  used names: ${usedNames_s(names)}
-    |  product class names: ${relation_s(productClassName)}
-    """.trim.stripMargin
+       |Relations (with name hashing enabled):
+       |  ${color("products")}: ${relation_s(srcProd)}
+       |  ${color("library dependencies")}: ${relation_s(libraryDep)}
+       |  ${color("library class names")}: ${relation_s(libraryClassName)}
+       |  ${color("internal dependencies")}: ${nestedRelation(internalDependencies.dependencies)}
+       |  ${color("external dependencies")}: ${nestedRelation(externalDependencies.dependencies)}
+       |  ${color("class names")}: ${relation_s(classes)}
+       |  ${color("used names")}: ${usedNames_s(names)}
+       |  ${color("product class names")}: ${relation_s(productClassName)}
+      """.trim.stripMargin
   }
 }

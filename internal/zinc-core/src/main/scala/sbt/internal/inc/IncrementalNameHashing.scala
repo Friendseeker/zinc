@@ -97,7 +97,7 @@ private[inc] class IncrementalNameHashingCommon(
       isScalaClass: String => Boolean
   ): Set[String] = {
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
-    log.debug(memberRefInvalidator.invalidationReason(externalAPIChange))
+    log.debug(memberRefInvalidator.invalidationReason(externalAPIChange).capitalize)
     log.debug("All member reference dependencies will be considered within this context.")
     val memberRefInv = memberRefInvalidator.get(_, relations.names, externalAPIChange, isScalaClass)
 
@@ -166,12 +166,18 @@ private[inc] class IncrementalNameHashingCommon(
       if (all.isEmpty) s"Change $change does not affect any class."
       else {
         val reason = memberRefInvalidator.invalidationReason(change)
-        def ppxs(s: String, xs: Set[String]) = if (xs.isEmpty) "" else s"$s: $xs"
-        s"""Change $change invalidates ${all.size} classes due to $reason
-           |  > ${ppxs("by transitive inheritance", transitiveInheritance)}
-           |  > ${ppxs("by local inheritance", localInheritance)}
-           |  > ${ppxs("by member reference", memberRef)}
-        """.stripMargin
+
+        def by(reason: String, classes: Set[String]) = {
+          if (classes.isEmpty) ""
+          else {
+            s"\tby $reason: ${classes.mkString(", ")}\n"
+          }
+        }
+
+        s"${all.size} classes were invalidated due to $reason\n" +
+          by("transitive inheritance", transitiveInheritance) +
+          by("local inheritance", localInheritance) +
+          by("member reference", memberRef)
       }
     }
     all

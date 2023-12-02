@@ -92,7 +92,7 @@ private[inc] abstract class IncrementalCommon(
       val pruned = IncrementalCommon
         .pruneClassFilesOfInvalidations(invalidatedSources, previous, classfileManager, converter)
 
-      debug(s"********* Pruned: \n${pruned.relations}\n*********")
+      debugInnerSection("Pruned")(pruned.relations)
 
       val handler = new IncrementalCallbackImpl(
         invalidatedSources,
@@ -113,7 +113,7 @@ private[inc] abstract class IncrementalCommon(
       )
 
       // Actual compilation takes place here
-      log.debug(s"compilation cycle $cycleNum")
+      debugOuterSection(s"Recompilation cycle #$cycleNum")
       val result = doCompile.run(invalidatedSources, binaryChanges, handler)
       val CompileCycleResult(continue, nextInvalidations, current) = result
 
@@ -554,27 +554,51 @@ private[inc] abstract class IncrementalCommon(
 
     val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
     val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byLibraryDep
+    debugOuterSection(s"Initial invalidation")
 
     if (previous.allSources.isEmpty)
       log.debug("Full compilation, no sources in previous analysis.")
     else if (allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty)
       log.debug("No changes")
-    else
-      log.debug(s"""
-        |Initial source changes:
-        |	removed: $removedSrcs
-        |	added: $addedSrcs
-        |	modified: $modifiedSrcs
-        |Invalidated products: ${changes.removedProducts}
-        |External API changes: ${changes.external}
-        |Modified binary dependencies: ${changes.libraryDeps}
-        |Initial directly invalidated classes: $invalidatedClasses
-        |Sources indirectly invalidated by:
-        |	product: $byProduct
-        |	binary dep: $byLibraryDep
-        |	external source: $byExtSrcDep""".stripMargin)
+    else {
+      def color(s: String) = Console.YELLOW + s + Console.RESET
+
+      def showSet[A](s: Set[A], baseIndent: String = ""): String = {
+        if (s.isEmpty) {
+          "[]"
+        } else {
+          s.map(baseIndent + "  " + _.toString).mkString("[\n", ",\n", "\n" + baseIndent + "]")
+        }
+      }
+      log.debug(
+        s"""
+           |${color("Initial source changes")}:
+           |  ${color("removed")}: ${showSet(removedSrcs, baseIndent = "  ")}
+           |  ${color("added")}: ${showSet(addedSrcs, baseIndent = "  ")}
+           |  ${color("modified")}: ${showSet(modifiedSrcs, baseIndent = "  ")}
+           |${color("Invalidated products")}: ${showSet(changes.removedProducts)}
+           |${color("External API changes")}: ${changes.external}
+           |${color("Modified binary dependencies")}: ${changes.libraryDeps}
+           |${color("Initial directly invalidated classes")}: $invalidatedClasses
+           |
+           |${color("Sources indirectly invalidated by")}:
+           |  ${color("product")}: ${showSet(byProduct, baseIndent = "  ")}
+           |  ${color("binary dep")}: ${showSet(byLibraryDep, baseIndent = "  ")}
+           |  ${color("external source")}: ${showSet(byExtSrcDep, baseIndent = "  ")}""".stripMargin
+      )
+    }
 
     (allInvalidatedClasses, allInvalidatedSourcefiles)
+  }
+
+  private[this] def debugOuterSection(header: String): Unit = {
+    import Console._
+    log.debug(s"$GREEN*************************** $header$RESET")
+  }
+
+  private[this] def debugInnerSection(header: String)(content: => Any): Unit = {
+    import Console._
+    debug(s"$CYAN************* $header:$RESET\n$content\n$CYAN************* (end of $header)$RESET")
   }
 
   /**
