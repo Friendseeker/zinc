@@ -1,14 +1,10 @@
 import sbt.zinc.example._
 
-class Foo(implicit bar: Bar) {
-  def show = println(bar.x)
-}
+class Foo(implicit baz: Baz)
 
 object Foo {
-  def main = {
-    val f = new Foo
-    f.show
-  }
+  val f = new Foo
 }
+
 
 // Random Placeholder comment to let Zinc detect that Foo has changed
