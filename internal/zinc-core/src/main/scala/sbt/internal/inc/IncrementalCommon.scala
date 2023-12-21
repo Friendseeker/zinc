@@ -60,6 +60,7 @@ private[inc] abstract class IncrementalCommon(
     }
   case class CycleState(
       invalidatedClasses: Set[String],
+      allInvalidatedClasses: Set[String],
       initialChangedSources: Set[VirtualFileRef],
       allSources: Set[VirtualFile],
       converter: FileConverter,
@@ -100,6 +101,7 @@ private[inc] abstract class IncrementalCommon(
         pruned,
         previous,
         classesToRecompile,
+        allInvalidatedClasses,
         profiler.registerCycle(
           invalidatedClasses,
           invalidatedByPackageObjects,
@@ -132,6 +134,8 @@ private[inc] abstract class IncrementalCommon(
       // Return immediate analysis as all sources have been recompiled
       copy(
         if (continue && !handler.isFullCompilation) nextInvalidations else Set.empty,
+        if (continue && !handler.isFullCompilation) allInvalidatedClasses ++ nextInvalidations
+        else allInvalidatedClasses,
         nextChangedSources,
         binaryChanges = IncrementalCommon.emptyChanges,
         previous = current,
@@ -151,6 +155,7 @@ private[inc] abstract class IncrementalCommon(
         pruned: Analysis,
         override val previousAnalysis: Analysis,
         classesToRecompile: Set[String],
+        allRecompiledClasses: Set[String],
         registerCycle: (Set[String], APIChanges, Set[String], Boolean) => Unit
     ) extends IncrementalCallback(classFileManager) {
       override val isFullCompilation: Boolean = allSources.subsetOf(invalidatedSources)
@@ -181,6 +186,7 @@ private[inc] abstract class IncrementalCommon(
               analysis,
               newApiChanges,
               recompiledClasses,
+              allRecompiledClasses,
               cycleNum >= options.transitiveStep,
               IncrementalCommon.comesFromScalaSource(previous.relations, Some(analysis.relations)) _
             )
@@ -248,6 +254,7 @@ private[inc] abstract class IncrementalCommon(
       cycleNum: Int,
   ): Analysis = {
     var s = CycleState(
+      invalidatedClasses,
       invalidatedClasses,
       initialChangedSources,
       allSources,
@@ -446,6 +453,7 @@ private[inc] abstract class IncrementalCommon(
    * @param analysis The analysis produced by the immediate previous incremental compiler cycle.
    * @param changes The changes produced by the immediate previous incremental compiler cycle.
    * @param recompiledClasses The immediately recompiled class names.
+   * @param previouslyRecompiledClasses The previously recompiled class names.
    * @param invalidateTransitively A flag that tells whether transitive invalidations should be
    *                               applied. This flag is only enabled when there have been more
    *                               than `incOptions.transitiveStep` incremental runs.
@@ -456,6 +464,7 @@ private[inc] abstract class IncrementalCommon(
       analysis: Analysis,
       changes: APIChanges,
       recompiledClasses: Set[String],
+      previouslyRecompiledClasses: Set[String],
       invalidateTransitively: Boolean,
       isScalaClass: String => Boolean
   ): Set[String] = {
@@ -470,7 +479,12 @@ private[inc] abstract class IncrementalCommon(
         } else {
           changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
         }
-      val included = includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
+      val included =
+        includeTransitivePastInvalidations(
+          recompiledClasses ++ previouslyRecompiledClasses,
+          invalidated,
+          dependsOnClass,
+        )
       log.debug("Final step, transitive dependencies:\n\t" + included)
       included
     }
@@ -505,11 +519,7 @@ private[inc] abstract class IncrementalCommon(
       log.debug("No classes were invalidated.")
       Set.empty
     } else {
-      if (invalidateTransitively) {
-        newInvalidations ++ recompiledClasses
-      } else {
-        firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
-      }
+      firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
     }
   }
 
@@ -590,7 +600,7 @@ private[inc] abstract class IncrementalCommon(
    * @param findClassDependencies
    * @return
    */
-  private[this] def includeTransitiveInitialInvalidations(
+  private[this] def includeTransitivePastInvalidations(
       previousInvalidations: Set[String],
       currentInvalidations: Set[String],
       findClassDependencies: String => Set[String]
