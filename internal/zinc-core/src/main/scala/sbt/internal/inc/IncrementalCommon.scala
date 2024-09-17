@@ -462,18 +462,19 @@ private[inc] abstract class IncrementalCommon(
     val relations = analysis.relations
     val initial = changes.allModified.toSet
     val dependsOnClass = findClassDependencies(_, relations)
-    val firstClassInvalidation: Set[String] = {
+    def getFirstClassInvalidation(transitively: Boolean) = {
       val invalidated =
-        if (invalidateTransitively) {
+        if (transitively) {
           // Invalidate by brute force (normally happens when we've done more than 3 incremental runs)
           IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
         } else {
           changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
         }
       val included = includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
-      log.debug("Final step, transitive dependencies:\n\t" + included)
       included
     }
+    val firstClassInvalidation = getFirstClassInvalidation(invalidateTransitively)
+    log.debug("Final step, transitive dependencies:\n\t" + firstClassInvalidation)
 
     // Invalidate classes linked with a class file that is produced by more than one source file
     val secondClassInvalidation = IncrementalCommon.invalidateNamesProducingSameClassFile(relations)
@@ -499,8 +500,15 @@ private[inc] abstract class IncrementalCommon(
       (transitive -- recompiledClasses).filter(analysis.apis.internalAPI(_).hasMacro)
     }
 
+    val nonTransitiveFirstClassInvalidation = if (invalidateTransitively) {
+      log.debug("Gathering non-transitive dependency as attempt for early stopping")
+      getFirstClassInvalidation(transitively = false)
+    } else {
+      firstClassInvalidation
+    }
+
     val newInvalidations =
-      (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
+      (nonTransitiveFirstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
     if (newInvalidations.isEmpty) {
       log.debug("No classes were invalidated.")
       Set.empty
