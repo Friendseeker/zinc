@@ -5,7 +5,7 @@ on:
 
 jobs:
   test:
-    timeout-minutes: 5
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -42,12 +42,16 @@ jobs:
       if: ${{ matrix.jobtype == 1 }}
       shell: bash
       run: |
+        for i in {1..10}; do
         sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "zincScripted/Test/run"
+        done
     - name: Build and test (2)
       if: ${{ matrix.jobtype == 2 }}
       shell: bash
       run: |
+        for i in {1..10}; do
         sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "zincScripted/Test/run"
+        done
     - name: Build and test (3)
       if: ${{ matrix.jobtype == 3 }}
       shell: bash
