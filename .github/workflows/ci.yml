@@ -13,6 +13,18 @@ jobs:
           - os: ubuntu-latest
             java: 8
             jobtype: 1
+          - os: ubuntu-latest
+            java: 8
+            jobtype: 1
+          - os: ubuntu-latest
+            java: 8
+            jobtype: 1
+          - os: windows-latest
+            java: 8
+            jobtype: 2
+          - os: windows-latest
+            java: 8
+            jobtype: 2
           - os: windows-latest
             java: 8
             jobtype: 2
