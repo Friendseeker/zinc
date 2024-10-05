@@ -85,7 +85,7 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
+        val gout = new java.util.zip.GZIPOutputStream(fout)
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()
