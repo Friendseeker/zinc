@@ -68,6 +68,26 @@ class AnalysisFormatBenchmark {
       ),
       cached
     )
+    writeAll(
+      "-ref-cbin-snappy",
+      ConsistentFileAnalysisStore.binary(
+        _,
+        ReadWriteMappers.getEmptyMappers,
+        sort = true,
+        snappy = true,
+      ),
+      cached
+    )
+    writeAll(
+      "-ref-cbin-nosort-snappy",
+      ConsistentFileAnalysisStore.binary(
+        _,
+        ReadWriteMappers.getEmptyMappers,
+        sort = false,
+        snappy = true,
+      ),
+      cached
+    )
     println("Sizes:")
     temp.listFiles().foreach { p => println(s"$p: ${p.length()}") }
     val cbinTotal = temp.listFiles().filter(_.getName.endsWith("-cbin.zip")).map(_.length()).sum
@@ -101,6 +121,19 @@ class AnalysisFormatBenchmark {
         )
       )
     )
+  @Benchmark
+  def readConsistentBinaryWithSnappy(bh: Blackhole): Unit =
+    bh.consume(
+      readAll(
+        "-ref-cbin-snappy",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = true,
+          snappy = true,
+        )
+      )
+    )
 
   @Benchmark
   def writeConsistentBinaryWithStandardGZIP(bh: Blackhole): Unit =
@@ -127,6 +160,36 @@ class AnalysisFormatBenchmark {
           ReadWriteMappers.getEmptyMappers,
           sort = false,
           fastGZIPOutput = false
+        ),
+        cached
+      )
+    )
+
+  @Benchmark
+  def writeConsistentBinaryWithSnappy(bh: Blackhole): Unit =
+    bh.consume(
+      writeAll(
+        "-test-cbin-snappy",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = true,
+          snappy = true,
+        ),
+        cached
+      )
+    )
+
+  @Benchmark
+  def writeConsistentBinaryNoSortWithSnappy(bh: Blackhole): Unit =
+    bh.consume(
+      writeAll(
+        "-test-cbin-nosort-snappy",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = false,
+          snappy = true,
         ),
         cached
       )

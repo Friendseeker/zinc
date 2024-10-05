@@ -12,7 +12,7 @@ package sbt.internal.inc.consistent
  * additional information regarding copyright ownership.
  */
 
-import java.io.{ File, FileInputStream, FileOutputStream }
+import java.io.{ File, FileInputStream, FileOutputStream, IOException }
 import java.util.Optional
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
@@ -20,8 +20,11 @@ import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 import scala.util.control.Exception.allCatch
 import xsbti.compile.analysis.ReadWriteMappers
 
-import java.util.zip.GZIPOutputStream
+import java.util.zip.{ GZIPOutputStream }
 import scala.concurrent.ExecutionContext
+import org.xerial.snappy.{ SnappyInputStream, SnappyOutputStream }
+
+import scala.util.Try
 
 object ConsistentFileAnalysisStore {
   def text(
@@ -63,6 +66,7 @@ object ConsistentFileAnalysisStore {
       ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors(),
       fastGZIPOutput: Boolean = true,
+      snappy: Boolean = false,
   ): XAnalysisStore =
     new AStore(
       file,
@@ -80,6 +84,7 @@ object ConsistentFileAnalysisStore {
       ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors(),
       fastGZIPOutput: Boolean = true,
+      snappy: Boolean = false,
   ) extends XAnalysisStore {
 
     def set(analysisContents: AnalysisContents): Unit = {
@@ -89,7 +94,9 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = if (fastGZIPOutput) {
+        val gout = if (snappy) {
+          new SnappyOutputStream(fout)
+        } else if (fastGZIPOutput) {
           new ParallelGzipOutputStream(fout, ec, parallelism)
         } else {
           new GZIPOutputStream(fout)
@@ -106,11 +113,30 @@ object ConsistentFileAnalysisStore {
       allCatch.opt(unsafeGet()).toOptional
     }
 
-    def unsafeGet(): AnalysisContents =
-      Using.gzipInputStream(new FileInputStream(file)) { in =>
-        val deser = sf.deserializerFor(in)
-        val (analysis, setup) = format.read(deser)
-        AnalysisContents.create(analysis, setup)
+    def unsafeGet(): AnalysisContents = {
+      if (!snappy) {
+        Using.gzipInputStream(new FileInputStream(file)) { in =>
+          val deser = sf.deserializerFor(in)
+          val (analysis, setup) = format.read(deser)
+          AnalysisContents.create(analysis, setup)
+        }
+      } else {
+        Try(new FileInputStream(file)).flatMap { fis =>
+          Try(new SnappyInputStream(fis)).flatMap { in =>
+            Try {
+              val deser = sf.deserializerFor(in)
+              val (analysis, setup) = format.read(deser)
+              AnalysisContents.create(analysis, setup)
+            }.recoverWith { case e: Exception =>
+              Try { in.close(); fis.close() } // Ensure streams are closed on failure
+              throw e
+            }
+          }.recoverWith { case e: IOException =>
+            Try { fis.close() } // Ensure the file stream is closed on failure
+            throw e
+          }
+        }.get
       }
+    }
   }
 }
