@@ -1,0 +1,4 @@
+> app/compile
+$ copy-file lib/changes/InternalApi.scala lib/InternalApi.scala
+> app/compile
+> app/checkRecompilations 1

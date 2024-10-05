@@ -1,0 +1,7 @@
+> macro-client/compile
+
+$ copy-file macro-provider/changes/Provider.scala macro-provider/Provider.scala
+
+> macro-client/compile
+
+> macro-client/checkRecompilations 1
