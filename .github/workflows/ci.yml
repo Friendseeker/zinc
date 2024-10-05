@@ -11,27 +11,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            java: 17
-            jobtype: 1
-          - os: ubuntu-latest
-            java: 11
-            jobtype: 1
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 1
-          - os: windows-latest
-            java: 8
-            jobtype: 2
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 3
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 4
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 5
-          - os: ubuntu-latest
             java: 21
             jobtype: 6
     runs-on: ${{ matrix.os }}

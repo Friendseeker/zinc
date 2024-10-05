@@ -48,6 +48,26 @@ class AnalysisFormatBenchmark {
       ConsistentFileAnalysisStore.binary(_, ReadWriteMappers.getEmptyMappers, sort = false),
       cached
     )
+    writeAll(
+      "-ref-cbin-stockzip",
+      ConsistentFileAnalysisStore.binary(
+        _,
+        ReadWriteMappers.getEmptyMappers,
+        sort = true,
+        fastGZIPOutput = false
+      ),
+      cached
+    )
+    writeAll(
+      "-ref-cbin-nosort-stockzip",
+      ConsistentFileAnalysisStore.binary(
+        _,
+        ReadWriteMappers.getEmptyMappers,
+        sort = false,
+        fastGZIPOutput = false
+      ),
+      cached
+    )
     println("Sizes:")
     temp.listFiles().foreach { p => println(s"$p: ${p.length()}") }
     val cbinTotal = temp.listFiles().filter(_.getName.endsWith("-cbin.zip")).map(_.length()).sum
@@ -66,6 +86,50 @@ class AnalysisFormatBenchmark {
   def readConsistentBinary(bh: Blackhole): Unit =
     bh.consume(
       readAll("-ref-cbin", ConsistentFileAnalysisStore.binary(_, ReadWriteMappers.getEmptyMappers))
+    )
+
+  @Benchmark
+  def readConsistentBinaryWithStandardGZIP(bh: Blackhole): Unit =
+    bh.consume(
+      readAll(
+        "-ref-cbin-stockzip",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = true,
+          fastGZIPOutput = false
+        )
+      )
+    )
+
+  @Benchmark
+  def writeConsistentBinaryWithStandardGZIP(bh: Blackhole): Unit =
+    bh.consume(
+      writeAll(
+        "-test-cbin-stockzip",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = true,
+          fastGZIPOutput = false
+        ),
+        cached
+      )
+    )
+
+  @Benchmark
+  def writeConsistentBinaryNoSortWithStandardGZIP(bh: Blackhole): Unit =
+    bh.consume(
+      writeAll(
+        "-test-cbin-nosort-stockzip",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = false,
+          fastGZIPOutput = false
+        ),
+        cached
+      )
     )
 
   @Benchmark

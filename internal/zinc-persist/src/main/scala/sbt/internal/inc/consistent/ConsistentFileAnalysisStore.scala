@@ -20,6 +20,7 @@ import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 import scala.util.control.Exception.allCatch
 import xsbti.compile.analysis.ReadWriteMappers
 
+import java.util.zip.GZIPOutputStream
 import scala.concurrent.ExecutionContext
 
 object ConsistentFileAnalysisStore {
@@ -60,14 +61,16 @@ object ConsistentFileAnalysisStore {
       mappers: ReadWriteMappers,
       sort: Boolean,
       ec: ExecutionContext = ExecutionContext.global,
-      parallelism: Int = Runtime.getRuntime.availableProcessors()
+      parallelism: Int = Runtime.getRuntime.availableProcessors(),
+      fastGZIPOutput: Boolean = true,
   ): XAnalysisStore =
     new AStore(
       file,
       new ConsistentAnalysisFormat(mappers, sort),
       SerializerFactory.binary,
       ec,
-      parallelism
+      parallelism,
+      fastGZIPOutput,
     )
 
   private final class AStore[S <: Serializer, D <: Deserializer](
@@ -75,7 +78,8 @@ object ConsistentFileAnalysisStore {
       format: ConsistentAnalysisFormat,
       sf: SerializerFactory[S, D],
       ec: ExecutionContext = ExecutionContext.global,
-      parallelism: Int = Runtime.getRuntime.availableProcessors()
+      parallelism: Int = Runtime.getRuntime.availableProcessors(),
+      fastGZIPOutput: Boolean = true,
   ) extends XAnalysisStore {
 
     def set(analysisContents: AnalysisContents): Unit = {
@@ -85,7 +89,11 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
+        val gout = if (fastGZIPOutput) {
+          new ParallelGzipOutputStream(fout, ec, parallelism)
+        } else {
+          new GZIPOutputStream(fout)
+        }
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()
