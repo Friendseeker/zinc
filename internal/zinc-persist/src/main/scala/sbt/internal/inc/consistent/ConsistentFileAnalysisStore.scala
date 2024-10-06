@@ -20,11 +20,15 @@ import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 import scala.util.control.Exception.allCatch
 import xsbti.compile.analysis.ReadWriteMappers
 
-import java.util.zip.{ GZIPOutputStream }
+import java.util.zip.{ GZIPInputStream, GZIPOutputStream }
 import scala.concurrent.ExecutionContext
 import org.xerial.snappy.{ SnappyInputStream, SnappyOutputStream }
+import sbt.internal.inc.consistent.Compression._
 
-import scala.util.Try
+object Compression extends Enumeration {
+  type Compression = Value
+  val Snappy, ParallelGZIP, StandardGZIP = Value
+}
 
 object ConsistentFileAnalysisStore {
   def text(
@@ -65,8 +69,7 @@ object ConsistentFileAnalysisStore {
       sort: Boolean,
       ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors(),
-      fastGZIPOutput: Boolean = true,
-      snappy: Boolean = false,
+      compression: Compression = ParallelGZIP,
   ): XAnalysisStore =
     new AStore(
       file,
@@ -74,7 +77,7 @@ object ConsistentFileAnalysisStore {
       SerializerFactory.binary,
       ec,
       parallelism,
-      fastGZIPOutput,
+      compression,
     )
 
   private final class AStore[S <: Serializer, D <: Deserializer](
@@ -83,8 +86,7 @@ object ConsistentFileAnalysisStore {
       sf: SerializerFactory[S, D],
       ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors(),
-      fastGZIPOutput: Boolean = true,
-      snappy: Boolean = false,
+      compression: Compression = ParallelGZIP,
   ) extends XAnalysisStore {
 
     def set(analysisContents: AnalysisContents): Unit = {
@@ -94,12 +96,10 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = if (snappy) {
-          new SnappyOutputStream(fout)
-        } else if (fastGZIPOutput) {
-          new ParallelGzipOutputStream(fout, ec, parallelism)
-        } else {
-          new GZIPOutputStream(fout)
+        val gout = compression match {
+          case Snappy       => new SnappyOutputStream(fout)
+          case ParallelGZIP => new ParallelGzipOutputStream(fout, ec, parallelism)
+          case StandardGZIP => new GZIPOutputStream(fout)
         }
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
@@ -113,30 +113,17 @@ object ConsistentFileAnalysisStore {
       allCatch.opt(unsafeGet()).toOptional
     }
 
-    def unsafeGet(): AnalysisContents = {
-      if (!snappy) {
-        Using.gzipInputStream(new FileInputStream(file)) { in =>
-          val deser = sf.deserializerFor(in)
-          val (analysis, setup) = format.read(deser)
-          AnalysisContents.create(analysis, setup)
-        }
-      } else {
-        Try(new FileInputStream(file)).flatMap { fis =>
-          Try(new SnappyInputStream(fis)).flatMap { in =>
-            Try {
-              val deser = sf.deserializerFor(in)
-              val (analysis, setup) = format.read(deser)
-              AnalysisContents.create(analysis, setup)
-            }.recoverWith { case e: Exception =>
-              Try { in.close(); fis.close() } // Ensure streams are closed on failure
-              throw e
-            }
-          }.recoverWith { case e: IOException =>
-            Try { fis.close() } // Ensure the file stream is closed on failure
-            throw e
-          }
-        }.get
+    def unsafeGet(): AnalysisContents =
+      Using.resource(compression match {
+        case Snappy       => new SnappyInputStream(_: FileInputStream)
+        case ParallelGZIP => new GZIPInputStream(_: FileInputStream)
+        case StandardGZIP => new GZIPInputStream(_: FileInputStream)
+      })(
+        new FileInputStream(file)
+      ) { in =>
+        val deser = sf.deserializerFor(in)
+        val (analysis, setup) = format.read(deser)
+        AnalysisContents.create(analysis, setup)
       }
-    }
   }
 }

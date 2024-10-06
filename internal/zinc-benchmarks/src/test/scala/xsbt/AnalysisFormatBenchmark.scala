@@ -7,6 +7,7 @@ import scala.collection.mutable
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 import sbt.internal.inc.consistent._
+import sbt.internal.inc.consistent.Compression._
 import sbt.internal.inc.{ Analysis, FileAnalysisStore }
 import sbt.io.IO
 import xsbti.compile.analysis.ReadWriteMappers
@@ -54,7 +55,7 @@ class AnalysisFormatBenchmark {
         _,
         ReadWriteMappers.getEmptyMappers,
         sort = true,
-        fastGZIPOutput = false
+        compression = StandardGZIP,
       ),
       cached
     )
@@ -64,7 +65,7 @@ class AnalysisFormatBenchmark {
         _,
         ReadWriteMappers.getEmptyMappers,
         sort = false,
-        fastGZIPOutput = false
+        compression = StandardGZIP,
       ),
       cached
     )
@@ -74,7 +75,7 @@ class AnalysisFormatBenchmark {
         _,
         ReadWriteMappers.getEmptyMappers,
         sort = true,
-        snappy = true,
+        compression = Snappy,
       ),
       cached
     )
@@ -84,7 +85,7 @@ class AnalysisFormatBenchmark {
         _,
         ReadWriteMappers.getEmptyMappers,
         sort = false,
-        snappy = true,
+        compression = Snappy,
       ),
       cached
     )
@@ -117,7 +118,7 @@ class AnalysisFormatBenchmark {
           _,
           ReadWriteMappers.getEmptyMappers,
           sort = true,
-          fastGZIPOutput = false
+          compression = StandardGZIP
         )
       )
     )
@@ -130,7 +131,7 @@ class AnalysisFormatBenchmark {
           _,
           ReadWriteMappers.getEmptyMappers,
           sort = true,
-          snappy = true,
+          compression = Snappy,
         )
       )
     )
@@ -144,7 +145,7 @@ class AnalysisFormatBenchmark {
           _,
           ReadWriteMappers.getEmptyMappers,
           sort = true,
-          fastGZIPOutput = false
+          compression = StandardGZIP
         ),
         cached
       )
@@ -159,7 +160,7 @@ class AnalysisFormatBenchmark {
           _,
           ReadWriteMappers.getEmptyMappers,
           sort = false,
-          fastGZIPOutput = false
+          compression = StandardGZIP
         ),
         cached
       )
@@ -174,7 +175,7 @@ class AnalysisFormatBenchmark {
           _,
           ReadWriteMappers.getEmptyMappers,
           sort = true,
-          snappy = true,
+          compression = Snappy,
         ),
         cached
       )
@@ -189,7 +190,7 @@ class AnalysisFormatBenchmark {
           _,
           ReadWriteMappers.getEmptyMappers,
           sort = false,
-          snappy = true,
+          compression = Snappy,
         ),
         cached
       )
