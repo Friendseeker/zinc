@@ -84,6 +84,7 @@ object ConsistentFileAnalysisStore {
       val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
+      // Retrigger the CI
       try {
         val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
         val ser = sf.serializerFor(gout)
