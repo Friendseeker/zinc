@@ -78,6 +78,9 @@ object ConsistentFileAnalysisStore {
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ) extends XAnalysisStore {
 
+    val pool = java.util.concurrent.Executors.newFixedThreadPool((parallelism - 1) max 1)
+    val customEC = ExecutionContext.fromExecutor(pool)
+
     def set(analysisContents: AnalysisContents): Unit = {
       val analysis = analysisContents.getAnalysis
       val setup = analysisContents.getMiniSetup
@@ -85,7 +88,7 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
+        val gout = new ParallelGzipOutputStream(fout, customEC, parallelism)
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()
