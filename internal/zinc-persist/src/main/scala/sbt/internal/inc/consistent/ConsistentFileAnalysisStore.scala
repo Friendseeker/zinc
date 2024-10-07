@@ -78,6 +78,8 @@ object ConsistentFileAnalysisStore {
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ) extends XAnalysisStore {
 
+    val core = 1
+
     def set(analysisContents: AnalysisContents): Unit = {
       val analysis = analysisContents.getAnalysis
       val setup = analysisContents.getMiniSetup
@@ -86,7 +88,7 @@ object ConsistentFileAnalysisStore {
       val fout = new FileOutputStream(tmpAnalysisFile)
       // Retrigger the CI
       try {
-        val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
+        val gout = new ParallelGzipOutputStream(fout, ec, core)
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()

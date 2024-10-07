@@ -55,7 +55,7 @@ final class ParallelGzipOutputStream(out: OutputStream, ec: ExecutionContext, pa
   import ParallelGzipOutputStream._
 
   private final val crc = new CRC32
-  private final val queueLimit = parallelism - 1
+  private final val queueLimit = parallelism - 1 max 1
   // preferred on 2.13: new mutable.ArrayDeque[Future[Block]](queueLimit)
   private final val pending = mutable.Queue.empty[Future[Block]]
   private var current: Block = new Block
