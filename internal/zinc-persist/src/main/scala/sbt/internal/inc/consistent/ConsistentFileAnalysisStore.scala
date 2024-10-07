@@ -78,7 +78,8 @@ object ConsistentFileAnalysisStore {
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ) extends XAnalysisStore {
 
-    val pool = java.util.concurrent.Executors.newFixedThreadPool((parallelism - 1) max 1)
+    val core = 1
+    val pool = java.util.concurrent.Executors.newFixedThreadPool((core - 1) max 1)
     val customEC = ExecutionContext.fromExecutor(pool)
 
     def set(analysisContents: AnalysisContents): Unit = {
