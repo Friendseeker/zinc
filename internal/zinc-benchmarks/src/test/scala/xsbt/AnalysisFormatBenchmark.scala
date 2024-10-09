@@ -89,6 +89,26 @@ class AnalysisFormatBenchmark {
       ),
       cached
     )
+    writeAll(
+      "-ref-cbin-newGZIP",
+      ConsistentFileAnalysisStore.binary(
+        _,
+        ReadWriteMappers.getEmptyMappers,
+        sort = true,
+        compression = NewParallelGZIP,
+      ),
+      cached
+    )
+    writeAll(
+      "-ref-cbin-nosort-newGZIP",
+      ConsistentFileAnalysisStore.binary(
+        _,
+        ReadWriteMappers.getEmptyMappers,
+        sort = false,
+        compression = NewParallelGZIP,
+      ),
+      cached
+    )
     println("Sizes:")
     temp.listFiles().foreach { p => println(s"$p: ${p.length()}") }
     val cbinTotal = temp.listFiles().filter(_.getName.endsWith("-cbin.zip")).map(_.length()).sum
@@ -96,6 +116,12 @@ class AnalysisFormatBenchmark {
     val cbinNoSortTotal =
       temp.listFiles().filter(_.getName.endsWith("-cbin-nosort.zip")).map(_.length()).sum
     println(s"cbin-nosort total = $cbinNoSortTotal, ${cbinNoSortTotal / 1024}k")
+    val cbinSnappyTotal =
+      temp.listFiles().filter(_.getName.endsWith("-cbin-snappy.zip")).map(_.length()).sum
+    println(s"cbin-snappy total = $cbinSnappyTotal, ${cbinSnappyTotal / 1024}k")
+    val cbinNoSortSnappyTotal =
+      temp.listFiles().filter(_.getName.endsWith("-cbin-nosort-snappy.zip")).map(_.length()).sum
+    println(s"-nosort-snappy total = $cbinNoSortSnappyTotal, ${cbinNoSortSnappyTotal / 1024}k")
   }
 
   @TearDown
@@ -109,19 +135,6 @@ class AnalysisFormatBenchmark {
       readAll("-ref-cbin", ConsistentFileAnalysisStore.binary(_, ReadWriteMappers.getEmptyMappers))
     )
 
-  @Benchmark
-  def readConsistentBinaryWithStandardGZIP(bh: Blackhole): Unit =
-    bh.consume(
-      readAll(
-        "-ref-cbin-stockzip",
-        ConsistentFileAnalysisStore.binary(
-          _,
-          ReadWriteMappers.getEmptyMappers,
-          sort = true,
-          compression = StandardGZIP
-        )
-      )
-    )
   @Benchmark
   def readConsistentBinaryWithSnappy(bh: Blackhole): Unit =
     bh.consume(
@@ -161,6 +174,36 @@ class AnalysisFormatBenchmark {
           ReadWriteMappers.getEmptyMappers,
           sort = false,
           compression = StandardGZIP
+        ),
+        cached
+      )
+    )
+
+  @Benchmark
+  def writeConsistentBinaryWithNewGZIP(bh: Blackhole): Unit =
+    bh.consume(
+      writeAll(
+        "-test-cbin-stockzip",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = true,
+          compression = NewParallelGZIP
+        ),
+        cached
+      )
+    )
+
+  @Benchmark
+  def writeConsistentBinaryNoSortWithNewGZIP(bh: Blackhole): Unit =
+    bh.consume(
+      writeAll(
+        "-test-cbin-nosort-stockzip",
+        ConsistentFileAnalysisStore.binary(
+          _,
+          ReadWriteMappers.getEmptyMappers,
+          sort = false,
+          compression = NewParallelGZIP
         ),
         cached
       )

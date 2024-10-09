@@ -12,7 +12,7 @@ package sbt.internal.inc.consistent
  * additional information regarding copyright ownership.
  */
 
-import java.io.{ File, FileInputStream, FileOutputStream, IOException }
+import java.io.{ File, FileInputStream, FileOutputStream }
 import java.util.Optional
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
@@ -27,7 +27,7 @@ import sbt.internal.inc.consistent.Compression._
 
 object Compression extends Enumeration {
   type Compression = Value
-  val Snappy, ParallelGZIP, StandardGZIP = Value
+  val Snappy, ParallelGZIP, StandardGZIP, NewParallelGZIP = Value
 }
 
 object ConsistentFileAnalysisStore {
@@ -97,9 +97,10 @@ object ConsistentFileAnalysisStore {
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
         val gout = compression match {
-          case Snappy       => new SnappyOutputStream(fout)
-          case ParallelGZIP => new ParallelGzipOutputStream(fout, ec, parallelism)
-          case StandardGZIP => new GZIPOutputStream(fout)
+          case Snappy          => new SnappyOutputStream(fout)
+          case ParallelGZIP    => new ParallelGzipOutputStream(fout, ec, parallelism)
+          case StandardGZIP    => new GZIPOutputStream(fout)
+          case NewParallelGZIP => new NewParallelGzipOutputStream(fout, parallelism)
         }
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
@@ -115,9 +116,10 @@ object ConsistentFileAnalysisStore {
 
     def unsafeGet(): AnalysisContents =
       Using.resource(compression match {
-        case Snappy       => new SnappyInputStream(_: FileInputStream)
-        case ParallelGZIP => new GZIPInputStream(_: FileInputStream)
-        case StandardGZIP => new GZIPInputStream(_: FileInputStream)
+        case Snappy          => new SnappyInputStream(_: FileInputStream)
+        case ParallelGZIP    => new GZIPInputStream(_: FileInputStream)
+        case StandardGZIP    => new GZIPInputStream(_: FileInputStream)
+        case NewParallelGZIP => new GZIPInputStream(_: FileInputStream)
       })(
         new FileInputStream(file)
       ) { in =>
