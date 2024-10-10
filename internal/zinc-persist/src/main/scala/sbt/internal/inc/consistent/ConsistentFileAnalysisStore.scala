@@ -23,7 +23,7 @@ import xsbti.compile.analysis.ReadWriteMappers
 import java.util.zip.{ GZIPInputStream, GZIPOutputStream }
 import scala.concurrent.ExecutionContext
 import org.xerial.snappy.{ SnappyInputStream, SnappyOutputStream }
-import sbt.internal.inc.consistent.Compression._
+import sbt.internal.inc.consistent.Compression.Compression
 
 object Compression extends Enumeration {
   type Compression = Value
@@ -69,7 +69,7 @@ object ConsistentFileAnalysisStore {
       sort: Boolean,
       ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors(),
-      compression: Compression = ParallelGZIP,
+      compression: Compression = Compression.ParallelGZIP,
   ): XAnalysisStore =
     new AStore(
       file,
@@ -86,7 +86,7 @@ object ConsistentFileAnalysisStore {
       sf: SerializerFactory[S, D],
       ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors(),
-      compression: Compression = ParallelGZIP,
+      compression: Compression = Compression.ParallelGZIP,
   ) extends XAnalysisStore {
 
     def set(analysisContents: AnalysisContents): Unit = {
@@ -97,10 +97,10 @@ object ConsistentFileAnalysisStore {
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
         val gout = compression match {
-          case Snappy          => new SnappyOutputStream(fout)
-          case ParallelGZIP    => new ParallelGzipOutputStream(fout, ec, parallelism)
-          case StandardGZIP    => new GZIPOutputStream(fout)
-          case NewParallelGZIP => new NewParallelGzipOutputStream(fout, parallelism)
+          case Compression.Snappy          => new SnappyOutputStream(fout)
+          case Compression.ParallelGZIP    => new ParallelGzipOutputStream(fout, ec, parallelism)
+          case Compression.StandardGZIP    => new GZIPOutputStream(fout)
+          case Compression.NewParallelGZIP => new NewParallelGzipOutputStream(fout, parallelism)
         }
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
@@ -116,10 +116,10 @@ object ConsistentFileAnalysisStore {
 
     def unsafeGet(): AnalysisContents =
       Using.resource(compression match {
-        case Snappy          => new SnappyInputStream(_: FileInputStream)
-        case ParallelGZIP    => new GZIPInputStream(_: FileInputStream)
-        case StandardGZIP    => new GZIPInputStream(_: FileInputStream)
-        case NewParallelGZIP => new GZIPInputStream(_: FileInputStream)
+        case Compression.Snappy          => new SnappyInputStream(_: FileInputStream)
+        case Compression.ParallelGZIP    => new GZIPInputStream(_: FileInputStream)
+        case Compression.StandardGZIP    => new GZIPInputStream(_: FileInputStream)
+        case Compression.NewParallelGZIP => new GZIPInputStream(_: FileInputStream)
       })(
         new FileInputStream(file)
       ) { in =>

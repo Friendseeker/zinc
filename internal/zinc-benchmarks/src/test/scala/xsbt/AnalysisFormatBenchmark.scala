@@ -122,6 +122,12 @@ class AnalysisFormatBenchmark {
     val cbinNoSortSnappyTotal =
       temp.listFiles().filter(_.getName.endsWith("-cbin-nosort-snappy.zip")).map(_.length()).sum
     println(s"-nosort-snappy total = $cbinNoSortSnappyTotal, ${cbinNoSortSnappyTotal / 1024}k")
+    val cbinStockZipTotal =
+      temp.listFiles().filter(_.getName.endsWith("-cbin-cbin-stockzip.zip")).map(_.length()).sum
+    println(s"cbin-stockzip total = $cbinStockZipTotal, ${cbinStockZipTotal / 1024}k")
+    val cbinNoSortStockZipTotal =
+      temp.listFiles().filter(_.getName.endsWith("-cbin-nosort-stockzip.zip")).map(_.length()).sum
+    println(s"-nosort-stockzip total = $cbinNoSortStockZipTotal, ${cbinNoSortStockZipTotal / 1024}k")
   }
 
   @TearDown
@@ -183,7 +189,7 @@ class AnalysisFormatBenchmark {
   def writeConsistentBinaryWithNewGZIP(bh: Blackhole): Unit =
     bh.consume(
       writeAll(
-        "-test-cbin-stockzip",
+        "-test-cbin-newGZIP",
         ConsistentFileAnalysisStore.binary(
           _,
           ReadWriteMappers.getEmptyMappers,
@@ -198,7 +204,7 @@ class AnalysisFormatBenchmark {
   def writeConsistentBinaryNoSortWithNewGZIP(bh: Blackhole): Unit =
     bh.consume(
       writeAll(
-        "-test-cbin-nosort-stockzip",
+        "-test-cbin-nosort-newGZIP",
         ConsistentFileAnalysisStore.binary(
           _,
           ReadWriteMappers.getEmptyMappers,
