@@ -123,7 +123,7 @@ class AnalysisFormatBenchmark {
       temp.listFiles().filter(_.getName.endsWith("-cbin-nosort-snappy.zip")).map(_.length()).sum
     println(s"-nosort-snappy total = $cbinNoSortSnappyTotal, ${cbinNoSortSnappyTotal / 1024}k")
     val cbinStockZipTotal =
-      temp.listFiles().filter(_.getName.endsWith("-cbin-cbin-stockzip.zip")).map(_.length()).sum
+      temp.listFiles().filter(_.getName.endsWith("-cbin-stockzip.zip")).map(_.length()).sum
     println(s"cbin-stockzip total = $cbinStockZipTotal, ${cbinStockZipTotal / 1024}k")
     val cbinNoSortStockZipTotal =
       temp.listFiles().filter(_.getName.endsWith("-cbin-nosort-stockzip.zip")).map(_.length()).sum
