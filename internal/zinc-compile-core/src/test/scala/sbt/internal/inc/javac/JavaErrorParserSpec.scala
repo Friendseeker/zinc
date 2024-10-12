@@ -220,7 +220,7 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
        |  symbol:   class NotFound
        |  location: class Test
        |2 errors
-    """.stripMargin
+    """.stripMargin.trim
 
   def sampleJavacWarning =
     "warning: [options] system modules path not set in conjunction with -source 17"
