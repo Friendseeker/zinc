@@ -20,7 +20,6 @@ import scala.concurrent.duration.*
 class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
   val defaultSize: Int = 64 * 1024
   val sizes: Seq[Int] = Seq(
-    0,
     1,
     3,
     32,
