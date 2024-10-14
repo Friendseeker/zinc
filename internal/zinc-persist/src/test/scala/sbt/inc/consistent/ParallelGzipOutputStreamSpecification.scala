@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.io.{ BufferedInputStream, ByteArrayInputStream, ByteArrayOutputStream }
 import java.util.zip.GZIPInputStream
+import java.nio.file.{ Files, Paths, StandardOpenOption }
 import sbt.internal.inc.consistent.ParallelGzipOutputStream
 import sbt.io.IO
 import sbt.io.Using
@@ -12,9 +13,9 @@ import sbt.io.Using
 import java.util.Arrays
 import collection.parallel.CollectionConverters.*
 import scala.util.Random
-import scala.concurrent.{ Future, Await }
+import scala.concurrent.{ Await, Future }
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
   val defaultSize: Int = 64 * 1024
@@ -39,21 +40,66 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
     Using.gzipInputStream(new ByteArrayInputStream(data))(IO.readBytes)
   }
 
-  def compress(data: Array[Byte], parallelism: Int): Array[Byte] = {
+  def compress(data: Array[Byte], parallelism: Int, testSetup: String): Array[Byte] = {
     val bout = new ByteArrayOutputStream()
     val gout = new ParallelGzipOutputStream(bout, parallelism)
     try {
       gout.write(data)
+    } catch {
+      case e: Exception =>
+        handleFailure(Array[Byte](), data, testSetup, "Compression Failed", Some(e))
     } finally {
       gout.close()
     }
     bout.toByteArray
   }
 
-  def verifyRoundTrip(data: Array[Byte], parallelism: Int, errorMessage: String): Unit = {
-    val compressed = compress(data, parallelism)
-    val decompressed = decompress(compressed)
-    assert(Arrays.equals(data, decompressed), errorMessage)
+  def writeToFile(data: Array[Byte], fileName: String): Unit = {
+    val outputDir = Paths.get("../../../test-gzip-output")
+    if (!Files.exists(outputDir)) {
+      Files.createDirectories(outputDir)
+    }
+    val path = outputDir.resolve(fileName)
+    Files.write(path, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+  }
+
+  def handleFailure(
+      compressed: Array[Byte],
+      data: Array[Byte],
+      testSetup: String,
+      errorCause: String,
+      errorOpt: Option[Exception] = None,
+  ): Unit = {
+    val compressedFileName = s"compressed_$testSetup.gz"
+    val dataFileName = s"data_$testSetup.bin"
+    writeToFile(compressed, compressedFileName)
+    writeToFile(data, dataFileName)
+
+    errorOpt match {
+      case Some(error) =>
+        fail(s"$errorCause. See $compressedFileName and $dataFileName", error)
+      case _ => fail(s"$errorCause. See $compressedFileName and $dataFileName")
+    }
+
+  }
+
+  def verifyRoundTrip(data: Array[Byte], parallelism: Int, testSetup: String): Unit = {
+    val compressed = compress(data, parallelism, testSetup)
+    try {
+      val decompressed = decompress(compressed)
+      if (!Arrays.equals(data, decompressed)) {
+        handleFailure(compressed, data, testSetup, "Compression and decompression mismatch.")
+      }
+    } catch {
+      case e: Exception =>
+        handleFailure(
+          compressed,
+          data,
+          testSetup,
+          "Decompression failed",
+          Some(e),
+        )
+    }
   }
 
   def randomArray(size: Int): Array[Byte] = {
@@ -79,7 +125,7 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
       size <- sizes
     } {
       val data = Array.fill(size)(0.toByte)
-      verifyRoundTrip(data, parallelism, s"parallelism = $parallelism, size = $size")
+      verifyRoundTrip(data, parallelism, s"parallelism = $parallelism, size = $size, redundant")
     }
   }
 
@@ -108,7 +154,7 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
           verifyRoundTrip(
             data,
             parallelism,
-            s"numberOfStreams: $numberOfGzipStream, parallelism = $parallelism, size = $size"
+            s"numberOfStreams: $numberOfGzipStream, parallelism = $parallelism, size = $size, multiple"
           )
         }
       )
@@ -126,7 +172,7 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
         verifyRoundTrip(
           data,
           parallelism,
-          s"parallelism = $parallelism, size = $size"
+          s"parallelism = $parallelism, size = $size, varying"
         )
       }
     }
