@@ -63,6 +63,11 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
     Files.write(path, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
   }
 
+  // Need this in windows to produce valid windows filename
+  def sanitizedFilename(fileName: String): String = {
+    fileName.replaceAll("[^a-zA-Z0-9-_.]", "_")
+  }
+  
   def handleFailure(
       compressed: Array[Byte],
       data: Array[Byte],
@@ -70,8 +75,8 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
       errorCause: String,
       errorOpt: Option[Exception] = None,
   ): Unit = {
-    val compressedFileName = s"compressed_$testSetup.gz"
-    val dataFileName = s"data_$testSetup.bin"
+    val compressedFileName = sanitizedFilename(s"compressed_$testSetup.gz")
+    val dataFileName = sanitizedFilename(s"data_$testSetup.bin")
     writeToFile(compressed, compressedFileName)
     writeToFile(data, dataFileName)
 
