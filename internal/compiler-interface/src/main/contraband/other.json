@@ -24,7 +24,7 @@
           "since": "1.4.0",
           "default": "\"\"",
           "doc": [
-            "An identifier of the 'provenance' of a class, such as the jar that contained it.",
+            "An identifier of the 'provenance' of a classsssss, such as the jar that contained it.",
             "Combined with a way to tell if the provenance has changed,",
             "it can be used to short-circuit the 'lookupAnalyzedClass' operation."
           ]
